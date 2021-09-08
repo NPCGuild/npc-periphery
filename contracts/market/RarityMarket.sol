@@ -88,7 +88,6 @@ contract RarityMarket {
         uint256 indexed trade_id
     );
 
-    // ============================================== Modifiers =======================================================
     // =============================================== Setters ========================================================
 
     /// @dev Constructor
@@ -121,6 +120,10 @@ contract RarityMarket {
         return tradeId;
     }
 
+    /// @dev buyTrade is the main function to purchase a trade request.
+    /// @param _tradeableItemsContract The item contract where the information is stored.
+    /// @param id The id of the item inside the item contract.
+    /// @param receiverSummoner The buyer summoner
     function buyTrade(address _tradeableItemsContract, uint256 id, uint256 receiverSummoner) external returns (bool) {
         require(_tradeableItemsContract != address(0), "RarityMarket: Cannot use empty address for tradeableItemContract");
 
@@ -131,10 +134,17 @@ contract RarityMarket {
 
         require(ITradeableItems(_tradeableItemsContract).transferFrom(owner_summoner, t.summoner, receiverSummoner, id), "RarityMarket: Unable to transfer item to buyer");
 
+        emit TradeExecuted(t.from, msg.sender, t.summoner, receiverSummoner, t.price, _tradeableItemsContract, id, t.trade_id);
 
         return true;
     }
 
     // =============================================== Getters ========================================================
 
+    /// @dev getTradeInformation returns the information for an item on a tradeable_items_contract.
+    /// @param _tradeableItemsContract The item contract where the information is stored.
+    /// @param id The id of the item inside the item contract.
+    function getTradeInformation(address _tradeableItemsContract, uint256 id) external view returns (Trade memory) {
+        return elements[_tradeableItemsContract][id];
+    }
 }
