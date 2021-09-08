@@ -2,13 +2,13 @@
 pragma solidity 0.8.7;
 
 /**
-   @dev ITradeableItems is a common interface for developers to build tradeable items.
+   @dev IRarityERC721 is a common interface for developers to build ERC721-like items.
    Since the Rarity ecosystem intends to have its own internal economy, is critical for
    all items inside the economy to work around the same economical model.
    This means all items must be traded between summoners, not users. To achieve that, any
    item that complies with the following interface is sellable in the RarityMarket.
  */
-interface ITradeableItems {
+interface IRarityERC721 {
 
     /** transferFrom Necessary to make sure the summoner owner of the market is
         able to transfer the trade element from the seller to the buyer.
@@ -25,7 +25,7 @@ interface ITradeableItems {
 
     /** IsApprovedForAll (Optional) To check if the market owner is approved to spend all items.
     */
-    function IsApprovedForAll(uint from, uint spender, uint id) external view returns (bool);
+    function IsApprovedForAll(uint from, uint spender) external view returns (bool);
 
     /** setApprovalForAll (Optional) To make the market owner able to spend any item from the user.
     */

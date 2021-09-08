@@ -3,13 +3,13 @@ pragma solidity 0.8.7;
 
 import "../interfaces/IRarity.sol";
 import "../interfaces/IGold.sol";
-import "../interfaces/IRarityERC721.sol";
+import "../interfaces/IRarityERC20.sol";
 
 /**
- * @dev RarityMarket is a place on which summoners can submit trade offers for any
- * ERC721-like element for the rarity ecosystem.
+ * @dev RarityExchange is a place on which summoners can submit trade offers for any
+ * ERC20-like element for the rarity ecosystem.
  */
-contract RarityMarket {
+contract RarityExchange {
 
     // =============================================== Storage ========================================================
 
@@ -18,7 +18,7 @@ contract RarityMarket {
     /// @param from The user owner of the summoner.
     /// @param price The amount of gold requested for the item.
     /// @param collection The item contract where the information is stored.
-    /// @param id The id of the item inside the item contract.
+    /// @param amount The amount of elements on the collection the trade includes.
     /// @param fulfilled Boolean if the trade is fulfilled.
     /// @param trade_id The internal id number.
     struct Trade {
@@ -26,7 +26,7 @@ contract RarityMarket {
         address from;
         uint256 price;
         address collection;
-        uint256 id;
+        uint256 amount;
         bool fulfilled;
         uint256 trade_id;
     }
@@ -45,8 +45,8 @@ contract RarityMarket {
     uint256 public owner_summoner;
 
     /// @dev elements is where all trades are stored.
-    /// ( collection ) => ( item_id => Trade )
-    mapping(address => mapping (uint256 => Trade)) elements;
+    /// ( collection ) => ( user => Trade )
+    mapping(address => mapping (address => Trade)) elements;
 
     // =============================================== Events =========================================================
 
@@ -56,14 +56,14 @@ contract RarityMarket {
     /// @param from The user owner of the summoner.
     /// @param price The amount of gold requested for the item.
     /// @param collection The item contract where the information is stored.
-    /// @param id The id of the item inside the item contract.
+    /// @param amount The amount of elements on the collection the trade includes.
     /// @param trade_id The internal id number.
     event SubmitTrade(
         uint256 summoner,
         address from,
         uint256 price,
         address indexed collection,
-        uint256 indexed id,
+        uint256 amount,
         uint256 indexed trade_id
     );
 
@@ -75,7 +75,7 @@ contract RarityMarket {
     /// @param summoner_to The summoner that bought the product.
     /// @param price The amount of gold requested for the item.
     /// @param collection The item contract where the information is stored.
-    /// @param id The id of the item inside the item contract.
+    /// @param amount The amount of elements on the collection the trade includes.
     /// @param trade_id The internal id number.
     event TradeExecuted(
         address from,
@@ -84,7 +84,7 @@ contract RarityMarket {
         uint256 summoner_to,
         uint256 price,
         address indexed collection,
-        uint256 indexed id,
+        uint256 amount,
         uint256 indexed trade_id
     );
 
@@ -102,53 +102,53 @@ contract RarityMarket {
 
     /// @dev submitTrade is the main function to start an item trade.
     /// @param _collection The item contract where the information is stored.
-    /// @param id The id of the item inside the item contract.
+    /// @param amount The amount of elements on the collection the trade includes.
     /// @param price The amount of gold requested for the item.
     /// @param _owner The summoner owner of the product.
-    function submitTrade(address _collection, uint256 id, uint256 price, uint256 _owner) external returns (uint256) {
+    function submitTrade(address _collection, uint256 amount, uint256 price, uint256 _owner) external returns (uint256) {
         require(_collection != address(0), "RarityMarket: Cannot use empty address for tradeableItemContract");
         require(price > 0, "RarityMarket: Unable to submit trade with price 0");
-        require(IRarityERC721(_collection).ownerOf(id) == _owner, "RarityMarket: summoner is not the owner");
         require(rarity.ownerOf(_owner) == msg.sender, "RarityMarket: require sender to be owner of the owner summoner");
-        require(IRarityERC721(_collection).IsApproved(_owner, owner_summoner, id), "RarityMarket: Market Owner is not approved for spend");
+        require(IRarityERC20(_collection).allowance(_owner, owner_summoner) > amount, "RarityMarket: Market Owner is not approved for spend");
 
         uint256 tradeId = trades + 1;
         trades += 1;
 
-        Trade memory t = Trade(_owner, msg.sender, price, _collection, id, false, tradeId);
-        elements[_collection][id] = t;
+        Trade memory t = Trade(_owner, msg.sender, price, _collection, amount, false, tradeId);
+        elements[_collection][msg.sender] = t;
 
-        emit SubmitTrade(_owner, msg.sender, price, _collection, id, tradeId);
+        emit SubmitTrade(_owner, msg.sender, price, _collection, amount, tradeId);
 
         return tradeId;
     }
 
     /// @dev buyTrade is the main function to purchase a trade request.
-    /// @param _tradeableItemsContract The item contract where the information is stored.
-    /// @param id The id of the item inside the item contract.
+    /// @param _collection The item contract where the information is stored.
+    /// @param _user The address of the user that submitted the trade to purchase to.
+    /// @param amount The amount of elements on the collection the trade includes.
     /// @param receiverSummoner The buyer summoner
-    function buyTrade(address _tradeableItemsContract, uint256 id, uint256 receiverSummoner) external returns (bool) {
-        require(_tradeableItemsContract != address(0), "RarityMarket: Cannot use empty address for tradeableItemContract");
+    function buyTrade(address _collection, address _user, uint256 amount, uint256 receiverSummoner) external returns (bool) {
+        require(_collection != address(0), "RarityMarket: Cannot use empty address for tradeableItemContract");
 
-        Trade memory t = elements[_tradeableItemsContract][id];
+        Trade memory t = elements[_collection][_user];
         require(!t.fulfilled, "RarityMarket: Trade is already fullfilled");
 
         require(gold.transferFrom(owner_summoner, t.summoner, receiverSummoner, t.price), "RarityMarket: Unable to transfer gold seller");
-        elements[_tradeableItemsContract][id].fulfilled = true;
+        elements[_collection][_user].fulfilled = true;
 
-        require(IRarityERC721(_tradeableItemsContract).transferFrom(owner_summoner, t.summoner, receiverSummoner, id), "RarityMarket: Unable to transfer item to buyer");
+        require(IRarityERC20(_collection).transferFrom(owner_summoner, t.summoner, receiverSummoner, amount), "RarityMarket: Unable to transfer item to buyer");
 
-        emit TradeExecuted(t.from, msg.sender, t.summoner, receiverSummoner, t.price, _tradeableItemsContract, id, t.trade_id);
+        emit TradeExecuted(t.from, msg.sender, t.summoner, receiverSummoner, t.price, _collection, amount, t.trade_id);
 
         return true;
     }
 
     // =============================================== Getters ========================================================
 
-    /// @dev getTradeInformation returns the information for an item on a tradeable_items_contract.
-    /// @param _tradeableItemsContract The item contract where the information is stored.
-    /// @param id The id of the item inside the item contract.
-    function getTradeInformation(address _tradeableItemsContract, uint256 id) external view returns (Trade memory) {
-        return elements[_tradeableItemsContract][id];
+    /// @dev getTradeInformation returns the information for an item on a _collection.
+    /// @param _collection The item contract where the information is stored.
+    /// @param _user The address of the user that submitted the trade to purchase to.
+    function getTradeInformation(address _collection, address _user) external view returns (Trade memory) {
+        return elements[_collection][_user];
     }
 }
