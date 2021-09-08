@@ -108,8 +108,7 @@ contract RarityExchange {
     function submitTrade(address _collection, uint256 amount, uint256 price, uint256 _owner) external returns (uint256) {
         require(_collection != address(0), "RarityMarket: Cannot use empty address for tradeableItemContract");
         require(price > 0, "RarityMarket: Unable to submit trade with price 0");
-        require(rarity.ownerOf(_owner) == msg.sender, "RarityMarket: require sender to be owner of the owner summoner");
-        require(IRarityERC20(_collection).allowance(_owner, owner_summoner) > amount, "RarityMarket: Market Owner is not approved for spend");
+        require(IRarityERC20(_collection).allowance(_owner, owner_summoner) >= amount, "RarityMarket: Market Owner is not approved for spend");
 
         uint256 tradeId = trades + 1;
         trades += 1;
@@ -133,7 +132,7 @@ contract RarityExchange {
         Trade memory t = elements[_collection][_user];
         require(!t.fulfilled, "RarityMarket: Trade is already fullfilled");
 
-        require(gold.transferFrom(owner_summoner, t.summoner, receiverSummoner, t.price), "RarityMarket: Unable to transfer gold seller");
+        require(gold.transferFrom(owner_summoner, receiverSummoner, t.summoner, t.price), "RarityMarket: Unable to transfer gold seller");
         elements[_collection][_user].fulfilled = true;
 
         require(IRarityERC20(_collection).transferFrom(owner_summoner, t.summoner, receiverSummoner, amount), "RarityMarket: Unable to transfer item to buyer");
