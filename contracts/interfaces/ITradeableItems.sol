@@ -15,17 +15,24 @@ interface ITradeableItems {
     */
     function transferFrom(uint executor, uint from, uint to, uint amount) external view returns (bool);
 
-    /** approve Users require to approve the summoner owner for trades
+    /** approve Users require to approve the summoner owner for trades.
     */
     function approve(uint from, uint spender, uint amount) external view returns (bool);
 
-    /** setApprovalForAll Is an optional feature that will make easier to list
-        multiple products in the market with full ownership of the summoner market owner.
+    /** IsApproved To check if the market owner is approved to spend a specific item.
+    */
+    function IsApproved(uint from, uint spender, uint id) external view returns (bool);
+
+    /** IsApprovedForAll (Optional) To check if the market owner is approved to spend all items.
+    */
+    function IsApprovedForAll(uint from, uint spender, uint id) external view returns (bool);
+
+    /** setApprovalForAll (Optional) To make the market owner able to spend any item from the user.
     */
     function setApprovalForAll(uint from, uint spender) external view returns (bool);
 
     /** ownerOf Is required to verify the ownership of the item.
-        (probably not necessary because of allowance, but still preferred)
+        (probably not necessary because of allowance, but still preferred).
     */
     function ownerOf(uint item) external view returns (uint summoner);
 }

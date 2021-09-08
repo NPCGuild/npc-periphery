@@ -3,6 +3,7 @@ pragma solidity 0.8.7;
 
 import "../interfaces/IRarity.sol";
 import "../interfaces/IGold.sol";
+import "../interfaces/ITradeableItems.sol";
 
 /**
  * @dev RarityMarket is a place on which summoners can submit trade offers for any
@@ -38,9 +39,9 @@ contract RarityMarket {
     /// Is necessary to send the items to the owner to be able to submit a trade order.
     uint256 public owner_summoner;
 
-    /// @dev elements is where all trades are stores.
-    /// ( tradeable_items_contract) => ( users => Trades[] )
-    mapping(address => mapping (address => Trade[])) elements;
+    /// @dev elements is where all trades are stored.
+    /// ( tradeable_items_contract) => ( item_id => Trade[] )
+    mapping(address => mapping (uint256 => Trade[])) elements;
 
     // =============================================== Events =========================================================
 
@@ -86,6 +87,23 @@ contract RarityMarket {
     constructor(address _rarity, uint256 _owner) {
         rarity = IRarity(_rarity);
         owner_summoner = _owner;
+    }
+
+    /// @dev submitTrade is the main function to start an item trade.
+    /// @param _tradeableItemsContract The item contract where the information is stored.
+    /// @param id The id of the item inside the item contract.
+    /// @param price The amount of gold requested for the item.
+    /// @param _owner The summoner owner of the product.
+    function submitTrade(address _tradeableItemsContract, uint256 id, uint256 price, uint256 _owner) external {
+        require(_tradeableItemsContract != address(0), "RarityMarket: Cannot use empty address for tradeableItemContract");
+        require(price > 0, "RarityMarket: Unable to submit trade with price 0");
+        require(ITradeableItems(_tradeableItemsContract).ownerOf(id) == _owner, "RarityMarket: summoner is not the owner");
+        require(rarity.ownerOf(_owner) == msg.sender, "RarityMarket: require sender to be owner of the owner summoner");
+        require(ITradeableItems(_tradeableItemsContract).IsApproved(_owner, owner_summoner, id), "RarityMarket: Market Owner is not approved for spend");
+
+        Trade memory t = Trade(_owner, msg.sender, price, _tradeableItemsContract, id, false);
+        elements[_tradeableItemsContract][id].push(t);
+        emit SubmitTrade(_owner, msg.sender, price, _tradeableItemsContract, id);
     }
 
     // =============================================== Getters ========================================================
