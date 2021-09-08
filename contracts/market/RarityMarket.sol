@@ -20,6 +20,7 @@ contract RarityMarket {
     /// @param tradeable_items_contract The item contract where the information is stored.
     /// @param id The id of the item inside the item contract.
     /// @param fulfilled Boolean if the trade is fulfilled.
+    /// @param trade_id The internal id number.
     struct Trade {
         uint256 summoner;
         address from;
@@ -27,6 +28,7 @@ contract RarityMarket {
         address tradeable_items_contract;
         uint256 id;
         bool fulfilled;
+        uint256 trade_id;
     }
 
     /// @dev rarity is the implementation of the rarity contract.
@@ -35,13 +37,16 @@ contract RarityMarket {
     /// @dev gold is the implementation of the rarity gold contract.
     IGold public gold;
 
+    /// @dev trades the amount of trades in the contract to use as id.
+    uint256 public trades;
+
     /// @dev owner_summoner is the summoner in charge of running the market.
     /// Is necessary to send the items to the owner to be able to submit a trade order.
     uint256 public owner_summoner;
 
     /// @dev elements is where all trades are stored.
-    /// ( tradeable_items_contract) => ( item_id => Trade[] )
-    mapping(address => mapping (uint256 => Trade[])) elements;
+    /// ( tradeable_items_contract) => ( item_id => Trade )
+    mapping(address => mapping (uint256 => Trade)) elements;
 
     // =============================================== Events =========================================================
 
@@ -52,12 +57,14 @@ contract RarityMarket {
     /// @param price The amount of gold requested for the item.
     /// @param tradeable_items_contract The item contract where the information is stored.
     /// @param id The id of the item inside the item contract.
+    /// @param trade_id The internal id number.
     event SubmitTrade(
         uint256 summoner,
         address from,
         uint256 price,
         address indexed tradeable_items_contract,
-        uint256 indexed id
+        uint256 indexed id,
+        uint256 indexed trade_id
     );
 
     /// @dev TradeExecuted is emitted with the `buyTrade` function.
@@ -69,6 +76,7 @@ contract RarityMarket {
     /// @param price The amount of gold requested for the item.
     /// @param tradeable_items_contract The item contract where the information is stored.
     /// @param id The id of the item inside the item contract.
+    /// @param trade_id The internal id number.
     event TradeExecuted(
         address from,
         address to,
@@ -76,7 +84,8 @@ contract RarityMarket {
         uint256 summoner_to,
         uint256 price,
         address indexed tradeable_items_contract,
-        uint256 indexed id
+        uint256 indexed id,
+        uint256 indexed trade_id
     );
 
     // ============================================== Modifiers =======================================================
@@ -94,16 +103,36 @@ contract RarityMarket {
     /// @param id The id of the item inside the item contract.
     /// @param price The amount of gold requested for the item.
     /// @param _owner The summoner owner of the product.
-    function submitTrade(address _tradeableItemsContract, uint256 id, uint256 price, uint256 _owner) external {
+    function submitTrade(address _tradeableItemsContract, uint256 id, uint256 price, uint256 _owner) external returns (uint256) {
         require(_tradeableItemsContract != address(0), "RarityMarket: Cannot use empty address for tradeableItemContract");
         require(price > 0, "RarityMarket: Unable to submit trade with price 0");
         require(ITradeableItems(_tradeableItemsContract).ownerOf(id) == _owner, "RarityMarket: summoner is not the owner");
         require(rarity.ownerOf(_owner) == msg.sender, "RarityMarket: require sender to be owner of the owner summoner");
         require(ITradeableItems(_tradeableItemsContract).IsApproved(_owner, owner_summoner, id), "RarityMarket: Market Owner is not approved for spend");
 
-        Trade memory t = Trade(_owner, msg.sender, price, _tradeableItemsContract, id, false);
-        elements[_tradeableItemsContract][id].push(t);
-        emit SubmitTrade(_owner, msg.sender, price, _tradeableItemsContract, id);
+        uint256 tradeId = trades + 1;
+        trades += 1;
+
+        Trade memory t = Trade(_owner, msg.sender, price, _tradeableItemsContract, id, false, tradeId);
+        elements[_tradeableItemsContract][id] = t;
+
+        emit SubmitTrade(_owner, msg.sender, price, _tradeableItemsContract, id, tradeId);
+
+        return tradeId;
+    }
+
+    function buyTrade(address _tradeableItemsContract, uint256 id, uint256 receiverSummoner) external returns (bool) {
+        require(_tradeableItemsContract != address(0), "RarityMarket: Cannot use empty address for tradeableItemContract");
+
+        Trade memory t = elements[_tradeableItemsContract][id];
+
+        require(gold.transferFrom(owner_summoner, t.summoner, receiverSummoner, t.price), "RarityMarket: Unable to transfer gold seller");
+        elements[_tradeableItemsContract][id].fulfilled = true;
+
+        require(ITradeableItems(_tradeableItemsContract).transferFrom(owner_summoner, t.summoner, receiverSummoner, id), "RarityMarket: Unable to transfer item to buyer");
+
+
+        return true;
     }
 
     // =============================================== Getters ========================================================

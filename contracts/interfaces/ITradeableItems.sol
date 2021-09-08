@@ -13,11 +13,11 @@ interface ITradeableItems {
     /** transferFrom Necessary to make sure the summoner owner of the market is
         able to transfer the trade element from the seller to the buyer.
     */
-    function transferFrom(uint executor, uint from, uint to, uint amount) external view returns (bool);
+    function transferFrom(uint executor, uint from, uint to, uint id) external view returns (bool);
 
     /** approve Users require to approve the summoner owner for trades.
     */
-    function approve(uint from, uint spender, uint amount) external view returns (bool);
+    function approve(uint from, uint spender, uint id) external view returns (bool);
 
     /** IsApproved To check if the market owner is approved to spend a specific item.
     */
