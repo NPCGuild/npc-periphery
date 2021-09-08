@@ -1,4 +1,6 @@
 require("dotenv").config()
+require("@nomiclabs/hardhat-ethers");
+require("@nomiclabs/hardhat-etherscan");
 
 const key = process.env.KEY
 
@@ -11,6 +13,9 @@ module.exports = {
       url: "https://rpcapi-tracing.fantom.network/",
       accounts: [key]
     },
+  },
+  etherscan: {
+    apiKey: process.env.API
   },
   solidity: {
     compilers: [{
