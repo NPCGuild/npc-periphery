@@ -106,12 +106,14 @@ contract RarityExchange {
     /// @param price The amount of gold requested for the item.
     /// @param _owner The summoner owner of the product.
     function submitTrade(address _collection, uint256 amount, uint256 price, uint256 _owner) external returns (uint256) {
-        require(_collection != address(0), "RarityMarket: Cannot use empty address for tradeableItemContract");
-        require(price > 0, "RarityMarket: Unable to submit trade with price 0");
-        require(IRarityERC20(_collection).allowance(_owner, owner_summoner) >= amount, "RarityMarket: Market Owner is not approved for spend");
+        require(_collection != address(0), "RarityExchange: Cannot use empty address for tradeableItemContract");
+        require(price > 0, "RarityExchange: Unable to submit trade with price 0");
+        require(IRarityERC20(_collection).allowance(_owner, owner_summoner) >= amount, "RarityExchange: Market Owner is not approved for spend");
+        require(rarity.ownerOf(_owner) == msg.sender, "RarityExchange: sender is not summoner owner");
 
-        uint256 tradeId = trades + 1;
         trades += 1;
+        uint256 tradeId = trades;
+
 
         Trade memory t = Trade(_owner, msg.sender, price, _collection, amount, false, tradeId);
         elements[_collection][msg.sender] = t;
@@ -124,20 +126,19 @@ contract RarityExchange {
     /// @dev buyTrade is the main function to purchase a trade request.
     /// @param _collection The item contract where the information is stored.
     /// @param _user The address of the user that submitted the trade to purchase to.
-    /// @param amount The amount of elements on the collection the trade includes.
     /// @param receiverSummoner The buyer summoner
-    function buyTrade(address _collection, address _user, uint256 amount, uint256 receiverSummoner) external returns (bool) {
-        require(_collection != address(0), "RarityMarket: Cannot use empty address for tradeableItemContract");
+    function buyTrade(address _collection, address _user, uint256 receiverSummoner) external returns (bool) {
+        require(_collection != address(0), "RarityExchange: Cannot use empty address for tradeableItemContract");
 
         Trade memory t = elements[_collection][_user];
-        require(!t.fulfilled, "RarityMarket: Trade is already fullfilled");
+        require(!t.fulfilled, "RarityExchange: Trade is already fullfilled");
 
-        require(gold.transferFrom(owner_summoner, receiverSummoner, t.summoner, t.price), "RarityMarket: Unable to transfer gold seller");
+        require(gold.transferFrom(owner_summoner, receiverSummoner, t.summoner, t.price), "RarityExchange: Unable to transfer gold seller");
         elements[_collection][_user].fulfilled = true;
 
-        require(IRarityERC20(_collection).transferFrom(owner_summoner, t.summoner, receiverSummoner, amount), "RarityMarket: Unable to transfer item to buyer");
+        require(IRarityERC20(_collection).transferFrom(owner_summoner, t.summoner, receiverSummoner, t.amount), "RarityExchange: Unable to transfer item to buyer");
 
-        emit TradeExecuted(t.from, msg.sender, t.summoner, receiverSummoner, t.price, _collection, amount, t.trade_id);
+        emit TradeExecuted(t.from, msg.sender, t.summoner, receiverSummoner, t.price, _collection, t.amount, t.trade_id);
 
         return true;
     }
