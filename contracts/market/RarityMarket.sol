@@ -92,9 +92,12 @@ contract RarityMarket {
 
     /// @dev Constructor
     /// @param _rarity The address of the rarity contract.
-    constructor(address _rarity, uint256 _owner) {
+    /// @param _owner The summoner owner of the market.
+    /// @param _gold The rarity gold address.
+    constructor(address _rarity, uint256 _owner, address _gold) {
         rarity = IRarity(_rarity);
         owner_summoner = _owner;
+        gold = IGold(_gold);
     }
 
     /// @dev submitTrade is the main function to start an item trade.
